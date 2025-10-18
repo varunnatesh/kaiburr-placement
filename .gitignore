@@ -1,0 +1,31 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node / Frontend
+node_modules/
+*.log
+dist/
+.parcel-cache/
+
+# Java / Maven
+target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Notebooks cache
+.ipynb_checkpoints/
+
+# Local artifacts
+_sanity_screenshots/*.png
+_sanity_screenshots/*.json
+_sanity_screenshots/API_RUN_REPORT.md
+_sanity_screenshots/catboost_info/
+
+# Data science large datasets (kept out of git; see DOWNLOAD_INSTRUCTIONS.md)
+task5-data-science/data/*.csv

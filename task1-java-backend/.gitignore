@@ -1,0 +1,22 @@
+# Ignore Maven build files
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Ignore IDE files
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore application-local.properties
+**/application-local.properties

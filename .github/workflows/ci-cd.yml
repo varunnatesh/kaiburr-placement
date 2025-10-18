@@ -1,0 +1,230 @@
+name: CI/CD Pipeline for Task Manager
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  IMAGE_NAME: task-manager
+  IMAGE_TAG: ${{ github.sha }}
+  JAVA_VERSION: '17'
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-test-backend:
+    name: Build and Test Java Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Build with Maven
+      run: |
+        cd task1-java-backend
+        mvn clean install -DskipTests
+        
+    - name: Run tests
+      run: |
+        cd task1-java-backend
+        mvn test
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        cd task1-java-backend
+        mvn surefire-report:report || true
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-jar
+        path: task1-java-backend/target/*.jar
+        retention-days: 7
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: task1-java-backend/target/surefire-reports
+        retention-days: 7
+
+  build-frontend:
+    name: Build React Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: task3-react-frontend/package-lock.json
+        
+    - name: Install dependencies
+      run: |
+        cd task3-react-frontend
+        npm ci
+        
+    - name: Lint code
+      run: |
+        cd task3-react-frontend
+        npm run lint || true
+        
+    - name: Build application
+      run: |
+        cd task3-react-frontend
+        npm run build
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: task3-react-frontend/dist
+        retention-days: 7
+
+  docker-build-and-push:
+    name: Build and Push Docker Image
+    needs: [build-and-test-backend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=sha,prefix=,format=short
+          type=ref,event=branch
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./task2-kubernetes/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          CACHEBUST=${{ github.sha }}
+
+  security-scan:
+    name: Security Scan
+    needs: [build-and-test-backend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  deploy-dev:
+    name: Deploy to Development
+    needs: [docker-build-and-push, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: http://dev.taskmanager.local
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to development
+      run: |
+        echo "Deploying to development environment..."
+        echo "Image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:develop"
+        # Add your deployment commands here
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [docker-build-and-push, build-frontend, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: http://taskmanager.local
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        echo "Image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        # Add your deployment commands here
+        
+    - name: Create deployment summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment:** Production" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image Tag:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Send Notifications
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Deployment Status
+      run: |
+        if [ "${{ needs.deploy-production.result }}" == "success" ]; then
+          echo "✅ Deployment successful!"
+        else
+          echo "❌ Deployment failed!"
+        fi

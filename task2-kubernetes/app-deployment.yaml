@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-manager
+  labels:
+    app: task-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-manager
+  template:
+    metadata:
+      labels:
+        app: task-manager
+    spec:
+      serviceAccountName: task-manager-sa
+      containers:
+      - name: task-manager
+        image: task-manager:v3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://mongodb:27017/taskmanager"
+        - name: MONGODB_DATABASE
+          value: "taskmanager"
+        - name: ENABLE_K8S
+          value: "true"
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-manager
+spec:
+  selector:
+    app: task-manager
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+  type: NodePort
