@@ -166,35 +166,7 @@ For submission, create separate GitHub repositories:
 
 ### 📧 Contact
 
-**Author:** [Your Name]  
-**Email:** [Your Email]  
+**Author:** VARUN K N  
+**Email:** varunnatesh10@gmail.com  
 **Date:** October 16, 2025
 
-### ⚠️ Important Notes
-
-1. **Screenshots:** All screenshots must include:
-   - Current date/time (system clock visible)
-   - Your name (in terminal, editor, or visible on desktop)
-
-2. **Original Work:** All code is original and understood
-
-3. **Testing:** All applications have been tested and work as expected
-
-4. **Documentation:** Each README includes:
-   - Setup instructions
-   - Running instructions
-   - API documentation (where applicable)
-   - Screenshots
-   - Troubleshooting guide
-
-### 🎯 Next Steps
-
-1. Take screenshots of each task showing functionality
-2. Add your name and ensure timestamps are visible
-3. Embed screenshots in respective READMEs
-4. Create separate GitHub repositories
-5. Push code to respective repositories
-6. Verify all links and documentation
-7. Submit repository links
-
-Good luck with your submission! 🚀
