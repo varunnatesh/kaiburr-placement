@@ -29,8 +29,8 @@ mvn spring-boot:run
 
 ---
 
-### Task 2: Kubernetes Deployment ⚠️
-**Status**: Configured but not running  
+### Task 2: Kubernetes Deployment
+**Status**: Configured   
 **Location**: `task2-kubernetes/`
 
 **What's Ready**:
